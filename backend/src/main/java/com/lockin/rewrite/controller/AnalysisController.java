@@ -30,14 +30,17 @@ public class AnalysisController {
     // reusing the logic from the node app (using a simple set of tech words)
 
     private final String bucketName;
+    private final com.lockin.rewrite.service.LatexService latexService;
 
     public AnalysisController(S3Client s3Client,
             DocumentParserService documentParserService,
             ResumeAnalyzerService resumeAnalyzerService,
+            com.lockin.rewrite.service.LatexService latexService,
             @org.springframework.beans.factory.annotation.Value("${aws.s3.bucketName}") String bucketName) {
         this.s3Client = s3Client;
         this.documentParserService = documentParserService;
         this.resumeAnalyzerService = resumeAnalyzerService;
+        this.latexService = latexService;
         this.bucketName = bucketName;
     }
 
@@ -83,6 +86,20 @@ public class AnalysisController {
 
             return ResponseEntity.ok(result);
 
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/generate-pdf")
+    public ResponseEntity<?> generatePdf(@RequestBody com.lockin.rewrite.model.resume.ResumeData resumeData) {
+        try {
+            byte[] pdfBytes = latexService.generatePdf(resumeData);
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"resume.pdf\"")
+                    .body(pdfBytes);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));

@@ -1,28 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+
+// --- Interfaces matching Backend DTOs ---
+
 export interface Suggestion {
   id: string;
   type: string;
-  originalText: string;
-  suggestedText: string;
-  startIndex: number;
-  endIndex: number;
   reason: string;
   priority: "high" | "medium" | "low";
 }
 
+interface BulletPoint {
+  original: string;
+  improved: string;
+  accepted: boolean;
+}
+
+interface Experience {
+  title: string;
+  company: string;
+  date: string;
+  location: string;
+  summary: string;
+  bulletPoints: BulletPoint[];
+}
+
+interface Project {
+  title: string;
+  link: string;
+  date: string;
+  summary: string;
+  location: string;
+  bulletPoints: BulletPoint[];
+}
+
+interface ResumeData {
+  personalInfo: any;
+  education: any[];
+  skills: any;
+  experience: Experience[];
+  projects: Project[];
+}
+
 interface ProcessedResume {
-  resumeText: string;
   analysis: {
     matchScore: number;
-    keywordMatches: string[];
-    missingKeywords: string[];
-    weakPhrases: string[];
     strengths: string[];
+    missingKeywords: string[];
   };
   suggestions: Suggestion[];
+  resumeData: ResumeData;
 }
 
 export default function ResultsPage() {
@@ -32,16 +61,9 @@ export default function ResultsPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ProcessedResume | null>(null);
 
-  // Track applied suggestions
-  const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(
-    new Set()
-  );
-  const [copiedSuggestionId, setCopiedSuggestionId] = useState<string | null>(
-    null
-  );
-
-  // Score state to allow updates
-  const [currentScore, setCurrentScore] = useState(0);
+  // PDF State
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     const resumeKey = searchParams.get("resumeKey");
@@ -56,442 +78,356 @@ export default function ResultsPage() {
     processResume(resumeKey, jd);
   }, [searchParams]);
 
+  // Initial Processing
   const processResume = async (resumeKey: string, jobDescription: string) => {
     try {
       const response = await fetch("http://localhost:8080/api/process", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          resumeKey,
-          jobDescription,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeKey, jobDescription }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process resume");
-      }
+      if (!response.ok) throw new Error("Failed to process resume");
 
-      const result = await response.json();
+      const result: ProcessedResume = await response.json();
       setData(result);
-      setCurrentScore(result.analysis.matchScore);
       setLoading(false);
+
+      // Generate initial PDF (Original)
+      generatePdf(result.resumeData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Processing failed");
       setLoading(false);
     }
   };
 
-  const copyToClipboard = async (text: string, suggestionId: string) => {
+  // Generate PDF from current ResumeData state
+  const generatePdf = async (resumeData: ResumeData) => {
+    setPdfLoading(true);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedSuggestionId(suggestionId);
-      setTimeout(() => setCopiedSuggestionId(null), 2000);
+      const response = await fetch("http://localhost:8080/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(resumeData),
+      });
+
+      if (!response.ok) throw new Error("Failed to generate PDF");
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
     } catch (err) {
-      console.error("Failed to copy:", err);
+      console.error("PDF Generation failed", err);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
-  const toggleApplied = (suggestionId: string) => {
-    setAppliedSuggestions((prev) => {
-      const newSet = new Set(prev);
-      const isApplying = !newSet.has(suggestionId);
+  // Toggle Acceptance Logic
+  const toggleAcceptance = (
+    section: "experience" | "projects",
+    index: number,
+    bulletIndex: number,
+    accepted: boolean
+  ) => {
+    if (!data) return;
 
-      if (isApplying) {
-        newSet.add(suggestionId);
-        // Increase score, max 100
-        setCurrentScore((s) => Math.min(s + 2, 100));
-      } else {
-        newSet.delete(suggestionId);
-        // Decrease score, min original score
-        setCurrentScore((s) => Math.max(s - 2, data?.analysis.matchScore || 0));
-      }
-
-      return newSet;
-    });
-  };
-
-  // Get the original text from resume for display
-  const getOriginalText = (suggestion: Suggestion): string => {
-    if (suggestion.originalText) {
-      return suggestion.originalText;
+    // Deep copy state update
+    const newData = { ...data };
+    const sectionList = newData.resumeData[section];
+    if (sectionList && sectionList[index]) {
+      sectionList[index].bulletPoints[bulletIndex].accepted = accepted;
+      setData(newData);
+      generatePdf(newData.resumeData); // Regenerate PDF
     }
-    // If no originalText, try to extract from resume text using indices
-    if (suggestion.startIndex >= 0 && suggestion.endIndex >= 0 && data) {
-      return data.resumeText.substring(
-        suggestion.startIndex,
-        suggestion.endIndex
-      );
-    }
-    return "N/A";
   };
 
   if (loading) {
     return (
-      <main className="min-h-screen py-12 px-4 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 mb-6 shadow-lg">
-            <svg
-              className="animate-spin h-8 w-8 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-slate-700 mb-2">
-            Analyzing Your Resume
+          <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-slate-700">
+            Analyzing Resume...
           </h2>
-          <p className="text-slate-500">This may take a few moments...</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="min-h-screen py-12 px-4 flex items-center justify-center">
-        <div className="max-w-md w-full glass-effect rounded-2xl p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">
-            Processing Failed
-          </h2>
-          <p className="text-slate-600 mb-6">
-            {error || "Failed to process resume"}
-          </p>
-          <button
-            onClick={() => router.push("/")}
-            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-200"
-          >
-            Try Again
-          </button>
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="text-red-600 font-semibold">
+          {error || "Something went wrong"}
         </div>
-      </main>
+      </div>
     );
   }
 
-  const appliedCount = appliedSuggestions.size;
-
   return (
-    <main className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
-        {/* Header Section */}
-        <div className="glass-effect rounded-2xl p-8 mb-8 shadow-xl animate-in">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">
-                Analysis Results
-              </h1>
-              <p className="text-slate-600">
-                Review suggestions and optimize your resume
-              </p>
-            </div>
-            <button
-              onClick={() => router.push("/")}
-              className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
-            >
-              New Analysis
-            </button>
-          </div>
-
-          {/* Match Score */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-slate-700">
-                ATS Match Score
+    <main className="min-h-screen flex flex-col h-screen overflow-hidden bg-slate-100">
+      {/* Top Bar: Score & Summary */}
+      <header className="bg-white shadow-sm p-4 z-10">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              ReWrite
+            </h1>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+                Match Score
               </span>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                {currentScore}%
-              </span>
-            </div>
-            <div className="relative w-full h-4 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-              <div
-                className={`absolute top-0 left-0 h-full rounded-full transition-all duration-700 ease-out ${
-                  currentScore >= 70
-                    ? "bg-gradient-to-r from-green-500 to-emerald-500"
-                    : currentScore >= 50
-                    ? "bg-gradient-to-r from-yellow-500 to-orange-500"
-                    : "bg-gradient-to-r from-red-500 to-pink-500"
+              <span
+                className={`text-2xl font-bold ${
+                  data.analysis.matchScore >= 70
+                    ? "text-green-600"
+                    : data.analysis.matchScore >= 50
+                    ? "text-amber-500"
+                    : "text-red-500"
                 }`}
-                style={{ width: `${currentScore}%` }}
               >
-                <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-              </div>
+                {data.analysis.matchScore}/100
+              </span>
             </div>
-            {appliedCount > 0 && (
-              <p className="text-sm text-green-600 font-medium mt-2 flex items-center gap-1">
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                +{appliedCount * 2} points from applied suggestions
-              </p>
-            )}
           </div>
+          <button
+            onClick={() => router.push("/")}
+            className="text-sm text-slate-500 hover:text-blue-600 font-medium"
+          >
+            Upload New
+          </button>
+        </div>
+      </header>
 
-          {/* Strengths */}
-          {data.analysis.strengths.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                Key Strengths
-              </h3>
+      {/* Split View */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT PANEL: Interactive Suggestions */}
+        <div className="w-1/2 overflow-y-auto p-6 space-y-8 border-r border-slate-200 bg-white/50">
+          {/* Analysis Summary (Accordion-like) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-800">
+              Analysis Insights
+            </h3>
+
+            {/* Strengths */}
+            <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+              <h4 className="text-sm font-semibold text-green-800 mb-2">
+                Strengths
+              </h4>
               <div className="flex flex-wrap gap-2">
-                {data.analysis.strengths.map((strength, index) => (
+                {data.analysis.strengths.map((s, i) => (
                   <span
-                    key={index}
-                    className="px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 text-sm font-medium rounded-lg flex items-center gap-2"
+                    key={i}
+                    className="text-xs font-medium px-2 py-1 bg-white rounded border border-green-200 text-green-700"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {strength}
+                    {s}
                   </span>
                 ))}
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Suggestions Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">
-            Optimization Suggestions
-            <span className="ml-2 text-lg font-normal text-slate-500">
-              ({data.suggestions.length})
-            </span>
-          </h2>
-          <p className="text-slate-600">
-            Copy suggested improvements and mark them as applied to track your
-            progress
-          </p>
-        </div>
-
-        {/* Suggestions List */}
-        <div className="space-y-6">
-          {data.suggestions.map((suggestion, index) => {
-            const isApplied = appliedSuggestions.has(suggestion.id);
-            const originalText = getOriginalText(suggestion);
-
-            return (
-              <div
-                key={suggestion.id}
-                className={`suggestion-card glass-effect rounded-2xl p-6 ${
-                  isApplied
-                    ? "ring-2 ring-green-400 bg-gradient-to-br from-green-50/50 to-emerald-50/50"
-                    : suggestion.priority === "high"
-                    ? "ring-2 ring-red-200 bg-gradient-to-br from-red-50/50 to-orange-50/50"
-                    : suggestion.priority === "medium"
-                    ? "ring-2 ring-yellow-200 bg-gradient-to-br from-yellow-50/50 to-orange-50/50"
-                    : "ring-1 ring-slate-200"
-                }`}
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-sm font-bold text-slate-400">
-                      #{index + 1}
-                    </span>
+            {/* Missing Keywords */}
+            {data.analysis.missingKeywords?.length > 0 && (
+              <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                <h4 className="text-sm font-semibold text-red-800 mb-2">
+                  Missing Keywords
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {data.analysis.missingKeywords.map((k, i) => (
                     <span
-                      className={`text-xs font-bold px-3 py-1 rounded-lg ${
-                        suggestion.priority === "high"
-                          ? "bg-gradient-to-r from-red-500 to-pink-500 text-white"
-                          : suggestion.priority === "medium"
-                          ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
-                          : "bg-gradient-to-r from-slate-500 to-slate-600 text-white"
-                      }`}
+                      key={i}
+                      className="text-xs font-medium px-2 py-1 bg-white rounded border border-red-200 text-red-700"
                     >
-                      {suggestion.priority.toUpperCase()}
+                      {k}
                     </span>
-                    <span className="text-xs font-semibold px-3 py-1 rounded-lg bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200">
-                      {suggestion.type.replace("-", " ").toUpperCase()}
-                    </span>
-                  </div>
-                  {isApplied && (
-                    <div className="flex items-center gap-1 text-green-600 bg-green-100 px-3 py-1 rounded-lg">
-                      <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      <span className="text-xs font-semibold">Applied</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Reason */}
-                <div className="mb-4 p-3 bg-white/60 rounded-lg border border-slate-200">
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {suggestion.reason}
-                  </p>
-                </div>
-
-                {/* Original Text */}
-                {originalText && originalText !== "N/A" && (
-                  <div className="mb-4">
-                    <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
-                      Current Resume Text
-                    </label>
-                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                        {originalText}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Suggested Text */}
-                <div className="mb-4">
-                  <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
-                    Optimized Suggestion
-                  </label>
-                  <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm">
-                    <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap pr-20">
-                      {suggestion.suggestedText}
-                    </p>
-                    <button
-                      onClick={() =>
-                        copyToClipboard(suggestion.suggestedText, suggestion.id)
-                      }
-                      className={`absolute top-3 right-3 px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                        copiedSuggestionId === suggestion.id
-                          ? "bg-green-500 text-white shadow-lg scale-105"
-                          : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md"
-                      }`}
-                    >
-                      {copiedSuggestionId === suggestion.id ? (
-                        <span className="flex items-center gap-1">
-                          <svg
-                            className="w-4 h-4"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Copied!
-                        </span>
-                      ) : (
-                        "Copy"
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Action Button */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => toggleApplied(suggestion.id)}
-                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 ${
-                      isApplied
-                        ? "bg-green-100 text-green-700 border-2 border-green-300 hover:bg-green-200"
-                        : "bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 shadow-lg hover:shadow-xl"
-                    }`}
-                  >
-                    {isApplied ? (
-                      <>
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        Applied to Resume
-                      </>
-                    ) : (
-                      "Mark as Applied"
-                    )}
-                  </button>
+                  ))}
                 </div>
               </div>
-            );
-          })}
+            )}
+          </div>
+
+          {/* Interactive Sections */}
+          <div className="space-y-8">
+            <h3 className="text-lg font-bold text-slate-800">Optimization</h3>
+
+            {/* Experience */}
+            {data.resumeData.experience?.map((exp, i) => (
+              <div key={`exp-${i}`} className="space-y-4">
+                <div className="flex justify-between items-baseline border-b pb-2">
+                  <h4 className="font-semibold text-slate-900">
+                    {exp.title}{" "}
+                    <span className="text-slate-500 font-normal">
+                      at {exp.company}
+                    </span>
+                  </h4>
+                  <span className="text-xs text-slate-400">{exp.date}</span>
+                </div>
+
+                <div className="space-y-4 pl-4 border-l-2 border-slate-100">
+                  {exp.bulletPoints.map((bp, j) => (
+                    <div
+                      key={`bp-${j}`}
+                      className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-bold text-slate-400 uppercase">
+                          Suggestion
+                        </span>
+                        <label className="flex items-center cursor-pointer">
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={bp.accepted}
+                              onChange={(e) =>
+                                toggleAcceptance(
+                                  "experience",
+                                  i,
+                                  j,
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <div
+                              className={`block w-10 h-6 rounded-full transition-colors ${
+                                bp.accepted ? "bg-green-500" : "bg-slate-300"
+                              }`}
+                            ></div>
+                            <div
+                              className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${
+                                bp.accepted ? "transform translate-x-4" : ""
+                              }`}
+                            ></div>
+                          </div>
+                          <span className="ml-3 text-sm font-medium text-slate-600">
+                            {bp.accepted ? "Accepted" : "Original"}
+                          </span>
+                        </label>
+                      </div>
+
+                      {/* Comparison */}
+                      <div className="space-y-3">
+                        <div
+                          className={`p-3 rounded-lg text-sm ${
+                            !bp.accepted
+                              ? "bg-blue-50 border border-blue-100 text-slate-800"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          <strong>Original:</strong> {bp.original}
+                        </div>
+                        <div
+                          className={`p-3 rounded-lg text-sm ${
+                            bp.accepted
+                              ? "bg-green-50 border border-green-100 text-slate-800"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          <strong>Improved:</strong> {bp.improved}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Projects - Similar Logic */}
+            {data.resumeData.projects?.map((proj, i) => (
+              <div key={`proj-${i}`} className="space-y-4">
+                <div className="flex justify-between items-baseline border-b pb-2">
+                  <h4 className="font-semibold text-slate-900">{proj.title}</h4>
+                  <span className="text-xs text-slate-400">{proj.date}</span>
+                </div>
+                <div className="space-y-4 pl-4 border-l-2 border-slate-100">
+                  {proj.bulletPoints.map((bp, j) => (
+                    <div
+                      key={`pbp-${j}`}
+                      className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-bold text-slate-400 uppercase">
+                          Suggestion
+                        </span>
+                        <label className="flex items-center cursor-pointer">
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={bp.accepted}
+                              onChange={(e) =>
+                                toggleAcceptance(
+                                  "projects",
+                                  i,
+                                  j,
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <div
+                              className={`block w-10 h-6 rounded-full transition-colors ${
+                                bp.accepted ? "bg-green-500" : "bg-slate-300"
+                              }`}
+                            ></div>
+                            <div
+                              className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${
+                                bp.accepted ? "transform translate-x-4" : ""
+                              }`}
+                            ></div>
+                          </div>
+                        </label>
+                      </div>
+                      <div className="space-y-3">
+                        <div
+                          className={`p-3 rounded-lg text-sm ${
+                            !bp.accepted
+                              ? "bg-blue-50 border border-blue-100 text-slate-800"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          <strong>Original:</strong> {bp.original}
+                        </div>
+                        <div
+                          className={`p-3 rounded-lg text-sm ${
+                            bp.accepted
+                              ? "bg-green-50 border border-green-100 text-slate-800"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          <strong>Improved:</strong> {bp.improved}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Empty State */}
-        {data.suggestions.length === 0 && (
-          <div className="glass-effect rounded-2xl p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+        {/* RIGHT PANEL: PDF Preview */}
+        <div className="w-1/2 bg-slate-200 flex flex-col items-center justify-center p-4">
+          {pdfLoading && (
+            <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+              <div className="bg-white p-4 rounded-xl shadow-lg flex items-center gap-3">
+                <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <span className="font-semibold text-slate-700">
+                  Updating PDF...
+                </span>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">
-              Excellent Resume!
-            </h3>
-            <p className="text-slate-600">
-              Your resume is well-optimized for this job description.
-            </p>
-          </div>
-        )}
+          )}
+          {pdfUrl ? (
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full rounded-lg shadow-2xl bg-white"
+              title="Resume PDF Preview"
+            />
+          ) : (
+            <div className="text-slate-500">Generating Preview...</div>
+          )}
+        </div>
       </div>
     </main>
   );

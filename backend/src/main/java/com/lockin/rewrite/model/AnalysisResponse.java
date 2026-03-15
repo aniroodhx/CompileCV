@@ -8,6 +8,7 @@ public class AnalysisResponse implements Serializable {
     private Analysis analysis;
     private List<Suggestion> suggestions;
     private double score;
+    private com.lockin.rewrite.model.resume.ResumeData resumeData;
 
     public AnalysisResponse() {
     }
@@ -49,5 +50,13 @@ public class AnalysisResponse implements Serializable {
 
     public void setScore(double score) {
         this.score = score;
+    }
+
+    public com.lockin.rewrite.model.resume.ResumeData getResumeData() {
+        return resumeData;
+    }
+
+    public void setResumeData(com.lockin.rewrite.model.resume.ResumeData resumeData) {
+        this.resumeData = resumeData;
     }
 }

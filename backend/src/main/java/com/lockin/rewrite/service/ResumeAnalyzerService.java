@@ -55,9 +55,8 @@ public class ResumeAnalyzerService {
                         **Core Logic**:
                         1. **Match Score**: 0-100 based on keyword overlap, STAR method usage, and relevance.
                         2. **Missing Keywords**: Identify critical tech/skills in JD absent in Resume.
-                        3. **Suggestions**: Provide specific, actionable rewrites. Focus on quantifying impact (numbers, %%) and using correct keywords.
-
-                        IMPORTANT: Do NOT use the example values. Calculate specific scores and insights for THIS resume.
+                        3. **Structure Extraction**: EXTRACT the entire resume content into a structured format for a LaTeX template.
+                        4. **Improvements**: For every bullet point in Experience and Projects, provide an IMPROVED version using STAR method and metrics.
 
                         **Missing Keywords Detected**: %s
 
@@ -68,25 +67,64 @@ public class ResumeAnalyzerService {
                         %s
 
                         **OUTPUT FORMAT**:
-                        Return ONLY a raw JSON object (no markdown, no ```json wrapper). Use this exact structure:
+                        Return ONLY a raw JSON object (no markdown). Use this exact structure:
                         {
                           "analysis": {
-                            "matchScore": <calculated_score_0_to_100>,
-                            "strengths": ["list", "of", "good", "points"],
-                            "missingKeywords": ["list", "of", "missing", "keywords"]
+                            "matchScore": <0-100>,
+                            "strengths": ["string"],
+                            "missingKeywords": ["string"]
                           },
                           "suggestions": [
                             {
-                              "id": "unique-id-1",
-                              "type": "content" | "formatting" | "grammar",
-                              "originalText": "text from resume or empty string if new",
-                              "suggestedText": "rewritten line with STAR + metrics",
-                              "startIndex": number (or -1 if not applicable),
-                              "endIndex": number (or -1),
-                              "reason": "short explanation",
-                              "priority": "high" | "medium" | "low"
+                              "id": "unique-id",
+                              "type": "content",
+                              "originalText": "string",
+                              "suggestedText": "string",
+                              "reason": "string",
+                              "priority": "high"
                             }
-                          ]
+                          ],
+                          "resumeData": {
+                            "personalInfo": {
+                              "name": "string",
+                              "phone": "string",
+                              "email": "string",
+                              "linkedin": "url or empty",
+                              "portfolio": "url or empty"
+                            },
+                            "education": [
+                              { "school": "string", "date": "string", "degree": "string", "gpa": "string" }
+                            ],
+                            "skills": {
+                              "languages": "string",
+                              "frameworks": "string",
+                              "tools": "string"
+                            },
+                            "experience": [
+                              {
+                                "title": "string",
+                                "company": "string",
+                                "date": "string",
+                                "location": "string",
+                                "summary": "string",
+                                "bulletPoints": [
+                                  { "original": "original text", "improved": "improved text", "accepted": false }
+                                ]
+                              }
+                            ],
+                            "projects": [
+                              {
+                                "title": "string",
+                                "link": "url/string",
+                                "date": "string",
+                                "summary": "string",
+                                "location": "string",
+                                "bulletPoints": [
+                                  { "original": "original text", "improved": "improved text", "accepted": false }
+                                ]
+                              }
+                            ]
+                          }
                         }
                         """,
                 missingKeywordsStr, truncatedResume, truncatedJD);

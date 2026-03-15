@@ -1,0 +1,165 @@
+\documentclass[letterpaper,10pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[colorlinks=true, urlcolor=blue, linkcolor=red]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+
+\setlength{\multicolsep}{-3.0pt}
+\setlength{\columnsep}{-1pt}
+\setlist[itemize]{nosep, topsep=10pt, partopsep=1pt, parsep=1pt}
+\input{glyphtounicode}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.6in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1.19in}
+\addtolength{\topmargin}{-.7in}
+\addtolength{\textheight}{1.4in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Section formatting
+\titleformat{\section}{
+  \vspace{-2pt}\scshape\raggedright\normalsize\selectfont
+}{}{0em}{}[\color{black}\titlerule \vspace{-3pt}]
+
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands (unchanged)
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
+\newcommand{\classesList}[4]{\item\small{{#1 #2 #3 #4 \vspace{-6pt}}}}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-4pt}\item
+    \begin{tabular*}{1.0\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textbf{\small #2} \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-10pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{1.001\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & \textbf{\small #2}\\
+    \end{tabular*}\vspace{-10pt}
+}
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-5pt}}
+\renewcommand\labelitemi{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\huge \scshape Your Name Here} \\ \vspace{1pt}
+    \small \raisebox{-0.1\height}\faPhone\ +1 (XXX) XXX-XXXX ~ 
+    \href{mailto:your@email.com}{\raisebox{-0.2\height}\faEnvelope\  \underline{your@email.com}} ~ 
+    \href{https://www.linkedin.com/in/your-link/}{\raisebox{-0.2\height}\faLinkedin\ \underline{linkedin.com/in/your-link}} ~
+    \href{https://yourportfolio.com/}{\raisebox{-0.2\height}\Mundus\ \underline{yourportfolio.com}}
+    \vspace{-9pt}
+\end{center}
+
+%-----------EDUCATION-----------
+\section{EDUCATION}
+\resumeSubHeadingListStart
+
+  \resumeSubheading
+    {University Name}{Start -- End}
+    {Degree (Major)}{GPA: X.XX/4.0}
+    \vspace{5pt}
+
+  \resumeSubheading
+    {Second University / Institution}{Start -- End}
+    {Degree / Certification}{GPA / Score}
+    \vspace{-2mm}
+
+\resumeSubHeadingListEnd
+\vspace{-12pt}
+
+%-----------SKILLS-----------
+\section{SKILLS}
+\begin{itemize}[leftmargin=0.15in, label={}]
+  \small{\item{
+    \textbf{Languages}{: Python, JavaScript, ...} \\
+    \textbf{Frameworks}{: React, Node.js, PyTorch, ...} \\
+    \textbf{Tools}{: AWS, Docker, Git, Linux, ...} \\
+  }}
+\end{itemize}
+\vspace{-20pt}
+
+%-----------EXPERIENCE-----------
+\section{INDUSTRIAL EXPERIENCE}
+\resumeSubHeadingListStart
+
+  \resumeSubheading
+    {Job Title / Position -- Company Name}{Start -- End}
+    {Team / Product Description}{Location}
+    \resumeItemListStart
+      \resumeItem{Describe key responsibility or achievement here.}
+      \resumeItem{Use metrics where possible (e.g., improved X by Y\%).}
+      \resumeItem{Highlight tech stack, collaboration, or ownership.}
+    \resumeItemListEnd
+
+  \vspace{3pt}
+  \resumeSubheading
+    {Job Title -- Company}{Start -- End}
+    {Domain / Summary}{Location}
+    \resumeItemListStart
+      \resumeItem{Achievement or project you worked on.}
+      \resumeItem{Contribution with measurable impact.}
+      \resumeItem{Tools, frameworks, or leadership actions.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+\vspace{-22pt}
+
+%-----------PROJECTS-----------
+\section{PROJECTS}
+\resumeSubHeadingListStart
+
+  \resumeSubheading
+    {\href{https://github.com/your-repo}{Project Title}}{Start -- End}
+    {Short one-line project description}{Location / Organization}
+  \resumeItemListStart
+    \resumeItem{Core contribution or design.}
+    \resumeItem{Technical implementation details.}
+    \resumeItem{Impact, performance, or outcome achieved.}
+  \resumeItemListEnd
+
+  \resumeSubheading
+    {\href{https://github.com/your-repo}{Second Project Title}}{Start -- End}
+    {Description of the system}{Location}
+  \resumeItemListStart
+    \resumeItem{Key idea or challenge solved.}
+    \resumeItem{Technologies used and approach taken.}
+    \resumeItem{Results, speedup, accuracy, or improvements.}
+  \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+\end{document}
