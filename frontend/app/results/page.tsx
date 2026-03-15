@@ -143,12 +143,28 @@ export default function ResultsPage() {
       result.analysis.missingKeywords = deterministicMissing;
       result.analysis.addedKeywords = []; // Initially empty as we start with original state
 
-      // 5. Recalculate Score to match our strict accounting
-      if (jdKeywords.length > 0) {
-        result.analysis.matchScore = Math.round(
-          (deterministicMatches.length / jdKeywords.length) * 100
-        );
+      // --- ENABLE IMPROVEMENTS BY DEFAULT ---
+      // User request: "Always I want the improvements to be turned on by default."
+      // We set all bullet points to 'accepted' = true, then trigger a recalculation
+      // so 'Added Keywords' and 'Match Score' reflect the improved state immediately.
+
+      if (result.resumeData.experience) {
+        result.resumeData.experience.forEach((exp) => {
+          if (exp.bulletPoints) {
+            exp.bulletPoints.forEach((bp) => (bp.accepted = true));
+          }
+        });
       }
+      if (result.resumeData.projects) {
+        result.resumeData.projects.forEach((proj) => {
+          if (proj.bulletPoints) {
+            proj.bulletPoints.forEach((bp) => (bp.accepted = true));
+          }
+        });
+      }
+
+      // Recalculate analysis to reflect the 'Accepted' state
+      recalculateAnalysis(result);
 
       console.log(
         "--- KEYWORD MATCH VERIFICATION (Frontend Deterministic) ---"
