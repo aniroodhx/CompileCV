@@ -90,7 +90,7 @@ public class LatexService {
         // Commands
         sb.append("\\newcommand{\\resumeItem}[1]{\\item\\small{{#1 \\vspace{-2pt}}}}\n");
         sb.append(
-                "\\newcommand{\\resumeSubheading}[4]{\\vspace{-4pt}\\item\\begin{tabular*}{1.0\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}\\textbf{#1} & \\textbf{\\small #2} \\\\ \\textit{\\small#3} & \\textit{\\small #4} \\\\ \\end{tabular*}\\vspace{-7pt}}\n");
+                "\\newcommand{\\resumeSubheading}[4]{\\vspace{-4pt}\\item\\begin{tabular*}{1.0\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}\\textbf{#1} & \\textbf{\\small #2} \\\\[-1pt] \\textit{\\small#3} & \\textit{\\small #4} \\\\ \\end{tabular*}\\vspace{-7pt}}\n");
         sb.append(
                 "\\newcommand{\\resumeProjectHeading}[2]{\\item\\begin{tabular*}{1.001\\textwidth}{l@{\\extracolsep{\\fill}}r}\\small#1 & \\textbf{\\small #2}\\\\ \\end{tabular*}\\vspace{-10pt}}\n");
         sb.append("\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.0in, label={}]}\n");
@@ -118,6 +118,7 @@ public class LatexService {
                         .append("}{\\raisebox{-0.2\\height}\\Mundus\\ \\underline{portfolio}}\n");
             }
             sb.append("\\end{center}\n");
+            sb.append("\\vspace{-16pt}\n");
         }
 
         // Education
@@ -130,14 +131,17 @@ public class LatexService {
                         .append("}\n");
                 sb.append("    {").append(escape(edu.getDegree())).append("}{").append(escape(edu.getGpa()))
                         .append("}\n");
+                sb.append("    \\vspace{5pt}\n");
             }
             sb.append("\\resumeSubHeadingListEnd\n");
+            sb.append("\\vspace{-25pt}\n");
         }
 
         // Skills
         if (data.getSkills() != null) {
             sb.append("\\section{SKILLS}\n");
             sb.append("\\begin{itemize}[leftmargin=0.15in, label={}]\n");
+            sb.append("\\vspace{-2pt}\n");
             sb.append("\\small{\\item{\n");
             if (data.getSkills().getLanguages() != null)
                 sb.append("\\textbf{Languages}{: ").append(escape(data.getSkills().getLanguages())).append("} \\\\\n");
@@ -147,19 +151,24 @@ public class LatexService {
             if (data.getSkills().getTools() != null)
                 sb.append("\\textbf{Tools}{: ").append(escape(data.getSkills().getTools())).append("} \\\\\n");
             sb.append("}}\n");
+            sb.append("\\vspace{-2pt}\n");
             sb.append("\\end{itemize}\n");
+            sb.append("\\vspace{-20pt}\n"); // FROM TEMPLATE
         }
 
         // Experience
         if (data.getExperience() != null && !data.getExperience().isEmpty()) {
             sb.append("\\section{INDUSTRIAL EXPERIENCE}\n");
             sb.append("\\resumeSubHeadingListStart\n");
-            for (ResumeData.Experience exp : data.getExperience()) {
+            for (int i = 0; i < data.getExperience().size(); i++) {
+                ResumeData.Experience exp = data.getExperience().get(i);
+
                 sb.append("  \\resumeSubheading\n");
                 sb.append("    {").append(escape(exp.getTitle())).append(" -- ").append(escape(exp.getCompany()))
                         .append("}{").append(escape(exp.getDate())).append("}\n");
                 sb.append("    {").append(escape(exp.getSummary())).append("}{").append(escape(exp.getLocation()))
                         .append("}\n");
+                sb.append("    \\vspace{-6pt}\n");
                 sb.append("    \\resumeItemListStart\n");
                 if (exp.getBulletPoints() != null) {
                     for (ResumeData.BulletPoint bp : exp.getBulletPoints()) {
@@ -168,18 +177,27 @@ public class LatexService {
                     }
                 }
                 sb.append("    \\resumeItemListEnd\n");
+
+                // Add spacing between experience items as per template example
+                if (i < data.getExperience().size() - 1) {
+                    sb.append("\\vspace{2pt}\n"); // FROM TEMPLATE
+                }
             }
             sb.append("\\resumeSubHeadingListEnd\n");
+            sb.append("\\vspace{-25pt}\n"); // FROM TEMPLATE
         }
 
         // Projects
         if (data.getProjects() != null && !data.getProjects().isEmpty()) {
             sb.append("\\section{PROJECTS}\n");
+            sb.append("\\vspace{-7pt}\n"); // FROM TEMPLATE
             sb.append("\\resumeSubHeadingListStart\n");
-            for (ResumeData.Project proj : data.getProjects()) {
+            for (int i = 0; i < data.getProjects().size(); i++) {
+                ResumeData.Project proj = data.getProjects().get(i);
                 sb.append("  \\resumeProjectHeading\n");
                 sb.append("    {\\textbf{").append(escape(proj.getTitle())).append("}}{").append(escape(proj.getDate()))
                         .append("}\n");
+                sb.append("    \\vspace{-13pt}\n");
                 sb.append("    \\resumeItemListStart\n");
                 if (proj.getBulletPoints() != null) {
                     for (ResumeData.BulletPoint bp : proj.getBulletPoints()) {
@@ -188,6 +206,10 @@ public class LatexService {
                     }
                 }
                 sb.append("    \\resumeItemListEnd\n");
+
+                if (i < data.getProjects().size() - 1) {
+                    sb.append("\\vspace{-18pt}\n");
+                }
             }
             sb.append("\\resumeSubHeadingListEnd\n");
         }
