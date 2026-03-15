@@ -16,6 +16,7 @@
 	<properties>
 		<java.version>21</java.version>
 		<aws.java.sdk.version>2.25.11</aws.java.sdk.version>
+
 	</properties>
 	<dependencies>
 		<!-- Web Starter for REST APIs -->
@@ -38,12 +39,7 @@
 		
 
 
-		<!-- Lombok for boilerplate reduction (Getter/Setter/Constructor) -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
+
 
 		<!-- DevTools for hot reload -->
 		<dependency>
@@ -69,7 +65,21 @@
             <artifactId>poi-ooxml</artifactId>
             <version>5.2.5</version>
         </dependency>
+
+        <!-- PDFBox for PDF parsing -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.0</version>
+        </dependency>
         
+        <!-- Dotenv for loading .env files -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
         <!-- Google Cloud Vertex AI / Gemini (using google-cloud-vertexai) -->
         <!-- Alternatively, simple REST call to Gemini API if not using Vertex AI specific SDK -->
         <!-- Using a simple HTTP client (OkHttp or just RestTemplate) is often easier if just hitting the API key endpoint.
@@ -90,18 +100,24 @@
 
 	<build>
 		<plugins>
+
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
+
 				</configuration>
 			</plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+
 		</plugins>
 	</build>
 

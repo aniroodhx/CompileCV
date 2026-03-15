@@ -1,19 +1,42 @@
 package com.lockin.rewrite.model;
 
-import lombok.Data;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class Analysis {
     private double matchScore;
-    private List<String> keywordMatches;
-    private List<String> missingKeywords;
-    private List<String> weakPhrases;
     private List<String> strengths;
+    private List<String> missingKeywords;
+
+    public Analysis() {
+    }
+
+    public Analysis(double matchScore, List<String> strengths, List<String> missingKeywords) {
+        this.matchScore = matchScore;
+        this.strengths = strengths;
+        this.missingKeywords = missingKeywords;
+    }
+
+    public double getMatchScore() {
+        return matchScore;
+    }
+
+    public void setMatchScore(double matchScore) {
+        this.matchScore = matchScore;
+    }
+
+    public List<String> getStrengths() {
+        return strengths;
+    }
+
+    public void setStrengths(List<String> strengths) {
+        this.strengths = strengths;
+    }
+
+    public List<String> getMissingKeywords() {
+        return missingKeywords;
+    }
+
+    public void setMissingKeywords(List<String> missingKeywords) {
+        this.missingKeywords = missingKeywords;
+    }
 }

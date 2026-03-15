@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suggestion } from "@/lib/analyzers/resumeAnalyzer";
+export interface Suggestion {
+  id: string;
+  type: string;
+  originalText: string;
+  suggestedText: string;
+  startIndex: number;
+  endIndex: number;
+  reason: string;
+  priority: "high" | "medium" | "low";
+}
 
 interface ProcessedResume {
   resumeText: string;
@@ -49,7 +58,7 @@ export default function ResultsPage() {
 
   const processResume = async (resumeKey: string, jobDescription: string) => {
     try {
-      const response = await fetch("/api/process", {
+      const response = await fetch("http://localhost:8080/api/process", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

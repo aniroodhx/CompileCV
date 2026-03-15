@@ -50,9 +50,12 @@ export default function Home() {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "text/plain",
       "application/msword",
+      "application/pdf",
     ];
     if (!allowedTypes.includes(file.type)) {
-      setError("Invalid file type. Please upload .docx or .txt files only.");
+      setError(
+        "Invalid file type. Please upload .docx, .pdf, or .txt files only."
+      );
       return;
     }
 
@@ -73,7 +76,7 @@ export default function Home() {
   };
 
   const uploadToS3 = async (file: File, fileType: string): Promise<string> => {
-    const response = await fetch("/api/presigned-upload", {
+    const response = await fetch("http://localhost:8080/api/presigned-upload", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -275,7 +278,7 @@ export default function Home() {
                         </button>
                       </p>
                       <p className="text-xs text-slate-500">
-                        Supports .docx and .txt files (max 10MB)
+                        Supports .docx, .pdf, and .txt files (max 10MB)
                       </p>
                     </>
                   )}
@@ -284,7 +287,7 @@ export default function Home() {
                   ref={fileInputRef}
                   id="resume-file"
                   type="file"
-                  accept=".docx,.txt"
+                  accept=".docx,.txt,.pdf"
                   onChange={handleInputChange}
                   disabled={uploading || processing}
                   className="hidden"
