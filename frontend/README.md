@@ -1,13 +1,13 @@
-# ReWrite - AI Resume Optimizer
+# CompileCV - AI Resume Optimizer
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8)
 
-ReWrite is an intelligent resume optimization tool powered by Google Gemini AI. It helps job seekers improve their resumes for Applicant Tracking Systems (ATS) by analyzing them against specific job descriptions and providing actionable, data-driven suggestions.
+CompileCV is an intelligent resume optimization tool powered by Google Gemini AI. It helps job seekers improve their resumes for Applicant Tracking Systems (ATS) by analyzing them against specific job descriptions and providing actionable, data-driven suggestions.
 
-![ReWrite Screenshot](https://placehold.co/1200x630/e2e8f0/1e293b?text=ReWrite+AI+Resume+Optimizer)
+![CompileCV Screenshot](https://placehold.co/1200x630/e2e8f0/1e293b?text=ReWrite+AI+Resume+Optimizer)
 
 ## 🚀 Features
 

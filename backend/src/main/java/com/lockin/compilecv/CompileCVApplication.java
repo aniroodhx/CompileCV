@@ -1,4 +1,4 @@
-package com.lockin.rewrite;
+package com.lockin.compilecv;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,7 +9,7 @@ import io.github.cdimascio.dotenv.Dotenv;
 
 @SpringBootApplication
 @EnableCaching
-public class LockInRewriteApplication {
+public class CompileCVApplication {
 
 	public static void main(String[] args) {
 		// Load .env.local from the root directory (../)
@@ -26,7 +26,9 @@ public class LockInRewriteApplication {
 			System.out.println("Could not load .env.local (might be in production or not found): " + e.getMessage());
 		}
 
-		SpringApplication.run(LockInRewriteApplication.class, args);
+		System.setProperty("pdfbox.fontcache", System.getProperty("java.io.tmpdir"));
+
+		SpringApplication.run(CompileCVApplication.class, args);
 	}
 
 }

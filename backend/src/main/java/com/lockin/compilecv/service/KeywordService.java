@@ -1,4 +1,4 @@
-package com.lockin.rewrite.service;
+package com.lockin.compilecv.service;
 
 import org.springframework.stereotype.Service;
 

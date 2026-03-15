@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ReWrite - AI Resume Optimizer",
+  title: "CompileCV - AI Resume Optimizer",
   description: "Transform your resume with AI-powered suggestions. Optimize for ATS and stand out to recruiters.",
 };
 

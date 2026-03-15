@@ -1,4 +1,4 @@
-package com.lockin.rewrite.model;
+package com.lockin.compilecv.model;
 
 import java.io.Serializable;
 import java.util.List;
@@ -8,7 +8,7 @@ public class AnalysisResponse implements Serializable {
     private Analysis analysis;
     private List<Suggestion> suggestions;
     private double score;
-    private com.lockin.rewrite.model.resume.ResumeData resumeData;
+    private com.lockin.compilecv.model.resume.ResumeData resumeData;
 
     public AnalysisResponse() {
     }
@@ -52,11 +52,11 @@ public class AnalysisResponse implements Serializable {
         this.score = score;
     }
 
-    public com.lockin.rewrite.model.resume.ResumeData getResumeData() {
+    public com.lockin.compilecv.model.resume.ResumeData getResumeData() {
         return resumeData;
     }
 
-    public void setResumeData(com.lockin.rewrite.model.resume.ResumeData resumeData) {
+    public void setResumeData(com.lockin.compilecv.model.resume.ResumeData resumeData) {
         this.resumeData = resumeData;
     }
 }

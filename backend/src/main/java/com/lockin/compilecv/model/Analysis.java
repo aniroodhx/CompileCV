@@ -1,4 +1,4 @@
-package com.lockin.rewrite.model;
+package com.lockin.compilecv.model;
 
 import java.io.Serializable;
 import java.util.List;

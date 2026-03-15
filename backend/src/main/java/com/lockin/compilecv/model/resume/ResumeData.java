@@ -1,4 +1,4 @@
-package com.lockin.rewrite.model.resume;
+package com.lockin.compilecv.model.resume;
 
 import java.io.Serializable;
 import java.util.List;
@@ -9,6 +9,7 @@ public class ResumeData implements Serializable {
     private Skills skills;
     private List<Experience> experience;
     private List<Project> projects;
+    private List<Certification> certifications;
 
     public ResumeData() {
     }
@@ -60,6 +61,14 @@ public class ResumeData implements Serializable {
 
     public void setProjects(List<Project> projects) {
         this.projects = projects;
+    }
+
+    public List<Certification> getCertifications() {
+        return certifications;
+    }
+
+    public void setCertifications(List<Certification> certifications) {
+        this.certifications = certifications;
     }
 
     // Inner Classes
@@ -322,5 +331,15 @@ public class ResumeData implements Serializable {
         public void setAccepted(boolean accepted) {
             this.accepted = accepted;
         }
+    }
+
+    public static class Certification implements Serializable {
+        private String name;
+        private String issuer;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getIssuer() { return issuer; }
+        public void setIssuer(String issuer) { this.issuer = issuer; }
     }
 }

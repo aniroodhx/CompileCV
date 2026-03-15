@@ -1,4 +1,4 @@
-package com.lockin.rewrite.service;
+package com.lockin.compilecv.service;
 
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -26,6 +26,8 @@ public class DocumentParserService {
     }
 
     public String parsePdf(byte[] fileData) {
+        System.setProperty("pdfbox.fontcache", System.getProperty("java.io.tmpdir"));
+
         try (PDDocument document = Loader.loadPDF(fileData)) {
             PDFTextStripper stripper = new PDFTextStripper();
             return stripper.getText(document);
