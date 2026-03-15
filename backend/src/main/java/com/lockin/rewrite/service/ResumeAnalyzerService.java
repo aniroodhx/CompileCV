@@ -1,5 +1,6 @@
 package com.lockin.rewrite.service;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lockin.rewrite.model.AnalysisResponse;
@@ -29,42 +30,62 @@ public class ResumeAnalyzerService {
   public ResumeAnalyzerService() {
     this.restTemplate = new RestTemplate();
     this.objectMapper = new ObjectMapper();
+    // Prevent failure if LLM returns extra fields not in our model
+    this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   }
 
   @org.springframework.cache.annotation.Cacheable(value = "analyses", key = "{#resumeKey, #jobDescription}")
-  public AnalysisResponse analyzeResume(String resumeText, String jobDescription, List<String> missingKeywords,
+  public AnalysisResponse analyzeResume(String resumeText, String jobDescription, List<String> missingKeywordsIgnored,
       String resumeKey) {
-    String prompt = buildPrompt(resumeText, jobDescription, missingKeywords);
-    String jsonResponse = callGeminiApi(prompt);
-    return parseResponse(jsonResponse, resumeText);
+
+    // 1. Single LLM Call for Analysis & Extraction
+    // This consolidated approach prevents hitting API rate limits (429) by doing
+    // extraction and analysis in one pass.
+    String prompt = buildPrompt(resumeText, jobDescription);
+    try {
+      String jsonResponse = callGeminiApi(prompt);
+      // 2. Parse Response
+      return parseResponse(jsonResponse, resumeText);
+    } catch (Exception e) {
+      System.err.println("Fatal error in analyzeResume: " + e.getMessage());
+      e.printStackTrace();
+      throw e;
+    }
   }
 
-  private String buildPrompt(String resumeText, String jobDescription, List<String> missingKeywords) {
-    String missingKeywordsStr = (missingKeywords == null || missingKeywords.isEmpty())
-        ? "None"
-        : String.join(", ", missingKeywords);
-
+  private String buildPrompt(String resumeText, String jobDescription) {
     // Truncate to avoid context window issues
     String truncatedResume = resumeText.length() > 10000 ? resumeText.substring(0, 10000) : resumeText;
     String truncatedJD = jobDescription.length() > 5000 ? jobDescription.substring(0, 5000) : jobDescription;
 
     return String.format(
         """
-            You are an expert Resume Analyzer and Career Coach. Validate the resume against the Job Description (JD).
+            You are an expert Talent Acquisition Specialist and Career Coach. Validate the resume against the Job Description (JD).
 
             **Core Logic**:
-            1. **Match Score**: 0-100 based on keyword overlap, STAR method usage, and relevance.
-            2. **Missing Keywords**: Identify critical tech/skills in JD absent in Resume.
-            3. **Structure Extraction**: EXTRACT the entire resume content into a structured format for a LaTeX template.
-            4. **Improvements**: For every bullet point in Experience and Projects, provide an IMPROVED version using STAR method and metrics.
+            1. **Match Score**: 0-100. Evaluate based on specific Hard Skills, Soft Skills, Tools, and Cultural Fit.
+            2. **Keywords Extraction**:
+               - **jdKeywords**: Extract all critical technical and soft skills from the Job Description (e.g. "Java", "Agile").
+               - **matchKeywords**: Extract the subset of 'jdKeywords' that are explicitly present in the Resume.
+               - **missingKeywords**: Identify critical requirements (Tech Stack, Methodologies) present in JD but MISSING in Resume.
+            3. **Structure Extraction**: EXTRACT the entire resume content into a structured format.
+            4. **Improvements**: REWRITE bullet points to be impactful, result-oriented, and aligned with the JD's tone.
 
             **Constraints**:
-            - **CRITICAL**: DO NOT REMOVE OR SHORTEN INFORMATION. Preserve all original details, numbers, and context.
-            - Only IMPROVE the phrasing/grammar/impact (STAR method) but keep the content INTENT and DETAILS intact.
-            - The output should fit on a single page if the original was 1 page, but prioritization should be on efficient formatting, not deletion.
-            - Ensure summary strings are concise (1 line) but descriptive.
-
-            **Missing Keywords Detected**: %s
+            - **CRITICAL**: DO NOT REMOVE INFORMATION. Preserve all original details, numbers, and context.
+            - **Tone**: Professional, confident, and action-oriented.
+            - **Experience & Project Summaries**:
+              * **EXTRACT** the summary exactly as it appears in the resume text.
+              * **DO NOT** summarize, rewrite, or shorten it.
+              * If no summary exists, return an empty string. **DO NOT** generate a summary.
+            - **Project Location**: Extract if present in input.
+            - **Work Experience Summary**: If 'description' text exists in input that isn't a bullet point, treat it as summary.
+            - **Keyword Strictness**:
+              * **STRICTLY EXCLUDE** all locations, city names, country names, and states (e.g., "Chicago", "London", "Remote", "India", "USA", "New York").
+              * **STRICTLY EXCLUDE** generic words (e.g., "Professional", "Senior", "Junior", "Experience", "Various").
+              * **STRICTLY EXCLUDE** dates, years, email addresses, and phone numbers.
+              * **Norm**: Return keywords in Title Case or Lowercase consistently.
+              * **Focus**: Only extract Technologies, Tools, Hard Skills (e.g. Java, AWS), and Specific Soft Skills (e.g. Leadership).
 
             **Resume Text**:
             %s
@@ -77,8 +98,10 @@ public class ResumeAnalyzerService {
             {
               "analysis": {
                 "matchScore": <0-100>,
-                "strengths": ["string"],
-                "missingKeywords": ["string"]
+                "matchKeywords": ["string"],
+                "jdKeywords": ["string"],
+                "missingKeywords": ["string"],
+                "strengths": ["string"]
               },
               "suggestions": [
                 {
@@ -112,7 +135,7 @@ public class ResumeAnalyzerService {
                     "company": "string",
                     "date": "string",
                     "location": "string",
-                    "summary": "string",
+                    "summary": "string (Max 6 words, or empty)",
                     "bulletPoints": [
                       { "original": "original text", "improved": "improved text", "accepted": false }
                     ]
@@ -123,8 +146,8 @@ public class ResumeAnalyzerService {
                     "title": "string",
                     "link": "url/string",
                     "date": "string",
-                    "summary": "string",
-                    "location": "string",
+                    "summary": "string (Max 6 words, or empty)",
+                    "location": "string (or empty)",
                     "bulletPoints": [
                       { "original": "original text", "improved": "improved text", "accepted": false }
                     ]
@@ -133,7 +156,7 @@ public class ResumeAnalyzerService {
               }
             }
             """,
-        missingKeywordsStr, truncatedResume, truncatedJD);
+        truncatedResume, truncatedJD);
   }
 
   private String callGeminiApi(String prompt) {
@@ -151,12 +174,31 @@ public class ResumeAnalyzerService {
 
     HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-    try {
-      ResponseEntity<String> response = restTemplate.postForEntity(urlWithKey, entity, String.class);
-      return extractContentFromResponse(response.getBody());
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to call Gemini API: " + e.getMessage(), e);
+    int maxRetries = 3;
+    int retryDelay = 2000; // 2 seconds
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        ResponseEntity<String> response = restTemplate.postForEntity(urlWithKey, entity, String.class);
+        return extractContentFromResponse(response.getBody());
+      } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
+        System.err.println("Gemini 429 Rate Limit hit. Attempt " + attempt + " of " + maxRetries);
+        if (attempt == maxRetries) {
+          throw new RuntimeException("Gemini API Rate Limit Exceeded after retries: " + e.getMessage(), e);
+        }
+        try {
+          Thread.sleep(retryDelay * attempt); // Linear/Exponential backoff
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException("Interrupted during retry wait", ie);
+        }
+      } catch (Exception e) {
+        System.err.println("Gemini API Call Failed. URL: " + urlWithKey);
+        System.err.println("Request Body: " + requestBody);
+        throw new RuntimeException("Failed to call Gemini API: " + e.getMessage(), e);
+      }
     }
+    throw new RuntimeException("Unreachable code in callGeminiApi");
   }
 
   private String extractContentFromResponse(String rawJson) {
@@ -172,7 +214,8 @@ public class ResumeAnalyzerService {
           .path("text")
           .asText();
     } catch (Exception e) {
-      throw new RuntimeException("Failed to parse Gemini API response: " + rawJson, e);
+      System.err.println("Failed to parse Gemini API response. Raw Response: " + rawJson);
+      throw new RuntimeException("Failed to parse Gemini API response", e);
     }
   }
 

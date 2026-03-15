@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 // --- Interfaces matching Backend DTOs ---
 
@@ -49,6 +50,8 @@ interface ProcessedResume {
     matchScore: number;
     strengths: string[];
     missingKeywords: string[];
+    matchKeywords?: string[];
+    jdKeywords?: string[];
   };
   suggestions: Suggestion[];
   resumeData: ResumeData;
@@ -65,6 +68,9 @@ export default function ResultsPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
+  // Ref to prevent double-fetching in Strict Mode
+  const processedRef = useRef(false);
+
   useEffect(() => {
     const resumeKey = searchParams.get("resumeKey");
     const jd = searchParams.get("jd");
@@ -74,6 +80,10 @@ export default function ResultsPage() {
       setLoading(false);
       return;
     }
+
+    // Prevent double execution
+    if (processedRef.current) return;
+    processedRef.current = true;
 
     processResume(resumeKey, jd);
   }, [searchParams]);
@@ -90,6 +100,21 @@ export default function ResultsPage() {
       if (!response.ok) throw new Error("Failed to process resume");
 
       const result: ProcessedResume = await response.json();
+
+      console.log("--- KEYWORD MATCH VERIFICATION ---");
+      console.log(
+        "JD Keywords (Total found):",
+        result.analysis.jdKeywords?.length
+      );
+      console.log("JD Keywords:", result.analysis.jdKeywords);
+      console.log(
+        "Matched Keywords (Found in Resume):",
+        result.analysis.matchKeywords?.length
+      );
+      console.log("Matched Keywords:", result.analysis.matchKeywords);
+      console.log("Calculated Score:", result.analysis.matchScore);
+      console.log("----------------------------------");
+
       setData(result);
       setLoading(false);
 
@@ -157,9 +182,34 @@ export default function ResultsPage() {
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="text-red-600 font-semibold">
-          {error || "Something went wrong"}
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 space-y-4">
+        <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-center max-w-md mx-4">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-6 h-6 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-red-900 mb-2">
+            Processing Failed
+          </h3>
+          <p className="text-red-700 mb-6">{error || "Something went wrong"}</p>
+          <Button
+            onClick={() => router.push("/")}
+            variant="outline"
+            className="border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800"
+          >
+            Try Again
+          </Button>
         </div>
       </div>
     );

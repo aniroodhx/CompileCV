@@ -40,4 +40,23 @@ public class Analysis implements Serializable {
     public void setMissingKeywords(List<String> missingKeywords) {
         this.missingKeywords = missingKeywords;
     }
+
+    private List<String> matchKeywords; // Keywords found in resume that matched
+    private List<String> jdKeywords; // All keywords extracted from JD
+
+    public List<String> getMatchKeywords() {
+        return matchKeywords;
+    }
+
+    public void setMatchKeywords(List<String> matchKeywords) {
+        this.matchKeywords = matchKeywords;
+    }
+
+    public List<String> getJdKeywords() {
+        return jdKeywords;
+    }
+
+    public void setJdKeywords(List<String> jdKeywords) {
+        this.jdKeywords = jdKeywords;
+    }
 }

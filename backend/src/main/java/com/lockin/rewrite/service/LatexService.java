@@ -118,7 +118,7 @@ public class LatexService {
                         .append("}{\\raisebox{-0.2\\height}\\Mundus\\ \\underline{portfolio}}\n");
             }
             sb.append("\\end{center}\n");
-            sb.append("\\vspace{-16pt}\n");
+            sb.append("\\vspace{-20pt}\n");
         }
 
         // Education
@@ -134,7 +134,7 @@ public class LatexService {
                 sb.append("    \\vspace{5pt}\n");
             }
             sb.append("\\resumeSubHeadingListEnd\n");
-            sb.append("\\vspace{-25pt}\n");
+            sb.append("\\vspace{-26pt}\n");
         }
 
         // Skills
@@ -168,7 +168,7 @@ public class LatexService {
                         .append("}{").append(escape(exp.getDate())).append("}\n");
                 sb.append("    {").append(escape(exp.getSummary())).append("}{").append(escape(exp.getLocation()))
                         .append("}\n");
-                sb.append("    \\vspace{-6pt}\n");
+                sb.append("    \\vspace{-10pt}\n");
                 sb.append("    \\resumeItemListStart\n");
                 if (exp.getBulletPoints() != null) {
                     for (ResumeData.BulletPoint bp : exp.getBulletPoints()) {
@@ -180,24 +180,41 @@ public class LatexService {
 
                 // Add spacing between experience items as per template example
                 if (i < data.getExperience().size() - 1) {
-                    sb.append("\\vspace{2pt}\n"); // FROM TEMPLATE
+                    sb.append("\\vspace{1pt}\n"); // FROM TEMPLATE
                 }
             }
             sb.append("\\resumeSubHeadingListEnd\n");
-            sb.append("\\vspace{-25pt}\n"); // FROM TEMPLATE
+            sb.append("\\vspace{-26pt}\n"); // FROM TEMPLATE
         }
 
         // Projects
         if (data.getProjects() != null && !data.getProjects().isEmpty()) {
             sb.append("\\section{PROJECTS}\n");
-            sb.append("\\vspace{-7pt}\n"); // FROM TEMPLATE
+            // sb.append("\\vspace{-4pt}\n"); // FROM TEMPLATE
             sb.append("\\resumeSubHeadingListStart\n");
             for (int i = 0; i < data.getProjects().size(); i++) {
                 ResumeData.Project proj = data.getProjects().get(i);
-                sb.append("  \\resumeProjectHeading\n");
-                sb.append("    {\\textbf{").append(escape(proj.getTitle())).append("}}{").append(escape(proj.getDate()))
-                        .append("}\n");
-                sb.append("    \\vspace{-13pt}\n");
+
+                System.out.println("Processing Project: " + proj.getTitle() + ", Date: " + proj.getDate());
+
+                // If we have detailed info (summary or location), use the Subheading format
+                boolean hasExtraInfo = (proj.getSummary() != null && !proj.getSummary().isEmpty()) ||
+                        (proj.getLocation() != null && !proj.getLocation().isEmpty());
+
+                if (hasExtraInfo) {
+                    sb.append("  \\resumeSubheading\n");
+                    sb.append("    {\\textbf{").append(escape(proj.getTitle())).append("}}{")
+                            .append(escape(proj.getDate())).append("}\n");
+                    sb.append("    {").append(escape(proj.getSummary())).append("}{").append(escape(proj.getLocation()))
+                            .append("}\n");
+                    sb.append("    \\vspace{-3pt}\n"); // Adjusted spacing
+                } else {
+                    sb.append("  \\resumeProjectHeading\n");
+                    sb.append("    {\\textbf{").append(escape(proj.getTitle())).append("}}{")
+                            .append(escape(proj.getDate())).append("}\n");
+                }
+
+                sb.append("    \\vspace{-7pt}\n"); // Adjusted spacing
                 sb.append("    \\resumeItemListStart\n");
                 if (proj.getBulletPoints() != null) {
                     for (ResumeData.BulletPoint bp : proj.getBulletPoints()) {
@@ -208,7 +225,7 @@ public class LatexService {
                 sb.append("    \\resumeItemListEnd\n");
 
                 if (i < data.getProjects().size() - 1) {
-                    sb.append("\\vspace{-18pt}\n");
+                    sb.append("\\vspace{0pt}\n");
                 }
             }
             sb.append("\\resumeSubHeadingListEnd\n");

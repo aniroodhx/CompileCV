@@ -84,7 +84,13 @@
         <!-- Alternatively, simple REST call to Gemini API if not using Vertex AI specific SDK -->
         <!-- Using a simple HTTP client (OkHttp or just RestTemplate) is often easier if just hitting the API key endpoint.
              Let's use Spring's RestClient or WebClient for the Gemini API to keep it simple and light. -->
-	</dependencies>
+
+        <!-- Log4j API for POI -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
+    </dependencies>
 
 	<dependencyManagement>
 		<dependencies>
