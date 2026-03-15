@@ -52,6 +52,8 @@ interface ProcessedResume {
     missingKeywords: string[];
     matchKeywords?: string[];
     jdKeywords?: string[];
+    addedKeywords?: string[];
+    originalMatchKeywords?: string[];
   };
   suggestions: Suggestion[];
   resumeData: ResumeData;
@@ -101,18 +103,68 @@ export default function ResultsPage() {
 
       const result: ProcessedResume = await response.json();
 
-      console.log("--- KEYWORD MATCH VERIFICATION ---");
-      console.log(
-        "JD Keywords (Total found):",
-        result.analysis.jdKeywords?.length
+      // --- DETERMINISTIC BASELINE CALCULATION ---
+      // We ignore the AI's partial/fuzzy keyword lists to ensure 100% consistency
+      // with our frontend toggle logic.
+
+      const jdKeywords = result.analysis.jdKeywords || [];
+
+      // 1. Construct Original Text (Strictly from original bullets)
+      const originalText = getAllOriginalResumeText(
+        result.resumeData
+      ).toLowerCase();
+
+      // 2. Calculate Strict Matches (Using Helper)
+      // Note: We need to define the helper before using (or hoist).
+      // Since hasKeyword is defined below, ensure we can access it or duplicate logic here.
+      // For safety in this functional component scope, we'll inline the logic or rely on the function hoisting if defined as `function`
+      // but here it is const. We should move `hasKeyword` to module scope or inside existing scope.
+      // Let's rely on moving `hasKeyword` to outside the component or duplicating the simple logic here to be safe within `processResume`.
+
+      const checkKeyword = (text: string, keyword: string): boolean => {
+        const isAlphanumeric = /^[a-zA-Z0-9\s]+$/.test(keyword);
+        if (!isAlphanumeric) return text.includes(keyword.toLowerCase());
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`\\b${escaped}\\b`, "i").test(text);
+      };
+
+      const deterministicMatches = jdKeywords.filter((k) =>
+        checkKeyword(originalText, k)
       );
-      console.log("JD Keywords:", result.analysis.jdKeywords);
-      console.log(
-        "Matched Keywords (Found in Resume):",
-        result.analysis.matchKeywords?.length
+
+      // 3. Calculate Strict Missing
+      const deterministicMissing = jdKeywords.filter(
+        (k) => !deterministicMatches.includes(k)
       );
-      console.log("Matched Keywords:", result.analysis.matchKeywords);
-      console.log("Calculated Score:", result.analysis.matchScore);
+
+      // 4. Overwrite Analysis State with Deterministic Values
+      result.analysis.matchKeywords = deterministicMatches;
+      result.analysis.originalMatchKeywords = [...deterministicMatches]; // Immutable Baseline
+      result.analysis.missingKeywords = deterministicMissing;
+      result.analysis.addedKeywords = []; // Initially empty as we start with original state
+
+      // 5. Recalculate Score to match our strict accounting
+      if (jdKeywords.length > 0) {
+        result.analysis.matchScore = Math.round(
+          (deterministicMatches.length / jdKeywords.length) * 100
+        );
+      }
+
+      console.log(
+        "--- KEYWORD MATCH VERIFICATION (Frontend Deterministic) ---"
+      );
+      console.log("JD Keywords:", jdKeywords.length, jdKeywords);
+      console.log(
+        "Original Matches:",
+        deterministicMatches.length,
+        deterministicMatches
+      );
+      console.log(
+        "Missing:",
+        deterministicMissing.length,
+        deterministicMissing
+      );
+      console.log("Score:", result.analysis.matchScore);
       console.log("----------------------------------");
 
       setData(result);
@@ -124,6 +176,29 @@ export default function ResultsPage() {
       setError(err instanceof Error ? err.message : "Processing failed");
       setLoading(false);
     }
+  };
+
+  // Helper to extract strictly ORIGINAL text
+  const getAllOriginalResumeText = (data: ResumeData): string => {
+    let text = "";
+    if (data.skills) {
+      text += `${data.skills.languages || ""} ${data.skills.frameworks || ""} ${
+        data.skills.tools || ""
+      } `;
+    }
+    data.experience?.forEach((exp) => {
+      text += `${exp.title} ${exp.company} ${exp.summary || ""} `;
+      exp.bulletPoints?.forEach((bp) => {
+        text += bp.original + " ";
+      });
+    });
+    data.projects?.forEach((proj) => {
+      text += `${proj.title} ${proj.summary || ""} `;
+      proj.bulletPoints?.forEach((bp) => {
+        text += bp.original + " ";
+      });
+    });
+    return text;
   };
 
   // Generate PDF from current ResumeData state
@@ -148,6 +223,58 @@ export default function ResultsPage() {
     }
   };
 
+  // Refactored Recalculation Logic
+  const recalculateAnalysis = (newData: ProcessedResume) => {
+    const currentText = getAllResumeText(newData.resumeData).toLowerCase();
+
+    // 1. Recalculate Matches with Regex
+    const jdKeywords = newData.analysis.jdKeywords || [];
+    const currentMatches = jdKeywords.filter((k) => hasKeyword(currentText, k));
+
+    // 2. Recalculate Missing
+    const currentMissing = jdKeywords.filter(
+      (k) => !currentMatches.includes(k)
+    );
+
+    // 3. Recalculate Added
+    const originalMatchesSet = new Set(
+      (newData.analysis.originalMatchKeywords || []).map((k) => k.toLowerCase())
+    );
+    const currentAdded = currentMatches.filter(
+      (k) => !originalMatchesSet.has(k.toLowerCase())
+    );
+
+    // Update Analysis State
+    newData.analysis.missingKeywords = currentMissing;
+    newData.analysis.addedKeywords = currentAdded;
+    newData.analysis.matchKeywords = currentMatches;
+
+    // Recalculate Score
+    if (jdKeywords.length > 0) {
+      newData.analysis.matchScore = Math.round(
+        (currentMatches.length / jdKeywords.length) * 100
+      );
+    }
+  };
+
+  // Toggle ALL Inputs
+  const toggleAll = (accepted: boolean) => {
+    if (!data) return;
+    const newData = { ...data };
+
+    newData.resumeData.experience?.forEach((exp) => {
+      exp.bulletPoints.forEach((bp) => (bp.accepted = accepted));
+    });
+
+    newData.resumeData.projects?.forEach((proj) => {
+      proj.bulletPoints.forEach((bp) => (bp.accepted = accepted));
+    });
+
+    recalculateAnalysis(newData);
+    setData(newData);
+    generatePdf(newData.resumeData);
+  };
+
   // Toggle Acceptance Logic
   const toggleAcceptance = (
     section: "experience" | "projects",
@@ -162,9 +289,57 @@ export default function ResultsPage() {
     const sectionList = newData.resumeData[section];
     if (sectionList && sectionList[index]) {
       sectionList[index].bulletPoints[bulletIndex].accepted = accepted;
+
+      recalculateAnalysis(newData);
+
       setData(newData);
       generatePdf(newData.resumeData); // Regenerate PDF
     }
+  };
+
+  // Helper: Strict Keyword Check with Word Boundaries
+  const hasKeyword = (text: string, keyword: string): boolean => {
+    // If keyword contains non-word chars (like C++, .NET), fallback to simple includes
+    // strict word boundaries \b only work for [a-zA-Z0-9_]
+    const isAlphanumeric = /^[a-zA-Z0-9\s]+$/.test(keyword);
+
+    if (!isAlphanumeric) {
+      return text.includes(keyword.toLowerCase());
+    }
+
+    // Escape regex special characters just in case
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Regex for: boundary + keyword + boundary, case insensitive
+    const regex = new RegExp(`\\b${escaped}\\b`, "i");
+    return regex.test(text);
+  };
+
+  // Helper to extract all visible text from resume data
+  const getAllResumeText = (data: ResumeData): string => {
+    let text = "";
+
+    // Skills
+    if (data.skills) {
+      text += `${data.skills.languages} ${data.skills.frameworks} ${data.skills.tools} `;
+    }
+
+    // Experience
+    data.experience?.forEach((exp) => {
+      text += `${exp.title} ${exp.company} ${exp.summary} `;
+      exp.bulletPoints.forEach((bp) => {
+        text += bp.accepted ? bp.improved : bp.original + " ";
+      });
+    });
+
+    // Projects
+    data.projects?.forEach((proj) => {
+      text += `${proj.title} ${proj.summary} `;
+      proj.bulletPoints.forEach((bp) => {
+        text += bp.accepted ? bp.improved : bp.original + " ";
+      });
+    });
+
+    return text;
   };
 
   if (loading) {
@@ -295,11 +470,48 @@ export default function ResultsPage() {
                 </div>
               </div>
             )}
+
+            {/* Added Keywords */}
+            {(data.analysis.addedKeywords?.length ?? 0) > 0 && (
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <h4 className="text-sm font-semibold text-blue-800 mb-2">
+                  Added Keywords
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {data.analysis.addedKeywords?.map((k, i) => (
+                    <span
+                      key={i}
+                      className="text-xs font-medium px-2 py-1 bg-white rounded border border-blue-200 text-blue-700"
+                    >
+                      {k}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Interactive Sections */}
           <div className="space-y-8">
-            <h3 className="text-lg font-bold text-slate-800">Optimization</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-800">Optimization</h3>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => toggleAll(true)}
+                  variant="outline"
+                  className="h-8 text-xs border-green-200 text-green-700 hover:bg-green-50"
+                >
+                  Accept All
+                </Button>
+                <Button
+                  onClick={() => toggleAll(false)}
+                  variant="outline"
+                  className="h-8 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
 
             {/* Experience */}
             {data.resumeData.experience?.map((exp, i) => (

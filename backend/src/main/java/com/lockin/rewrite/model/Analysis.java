@@ -59,4 +59,14 @@ public class Analysis implements Serializable {
     public void setJdKeywords(List<String> jdKeywords) {
         this.jdKeywords = jdKeywords;
     }
+
+    private List<String> addedKeywords; // Keywords added by the AI enhancement
+
+    public List<String> getAddedKeywords() {
+        return addedKeywords;
+    }
+
+    public void setAddedKeywords(List<String> addedKeywords) {
+        this.addedKeywords = addedKeywords;
+    }
 }

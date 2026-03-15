@@ -67,9 +67,14 @@ public class ResumeAnalyzerService {
             2. **Keywords Extraction**:
                - **jdKeywords**: Extract all critical technical and soft skills from the Job Description (e.g. "Java", "Agile").
                - **matchKeywords**: Extract the subset of 'jdKeywords' that are explicitly present in the Resume.
-               - **missingKeywords**: Identify critical requirements (Tech Stack, Methodologies) present in JD but MISSING in Resume.
+               - **matchKeywords**: Extract the subset of 'jdKeywords' that are explicitly present in the Resume.
+               - **missingKeywords**: Identify critical requirements (Tech Stack, Methodologies) in 'jdKeywords' that are COMPLETELY ABSENT from the Resume. **CRITICAL**: If a word appears *anywhere* in the resume text (even in a different section), you MUST NOT list it as missing.
+               - **addedKeywords**: Identify keywords that you have ADDED to the resume content during the improvement/rewrite process to better align with the JD.
             3. **Structure Extraction**: EXTRACT the entire resume content into a structured format.
             4. **Improvements**: REWRITE bullet points to be impactful, result-oriented, and aligned with the JD's tone.
+               - **STRATEGY**: Look at the 'missingKeywords' list. Try to **INTELLIGENTLY WEAVE** these missing keywords into the 'Improved' bullet points where they fit contextually.
+               - **GOAL**: The 'Improved' version should effectively "fill the gaps" and increase the match score.
+               - **CONSTRAINT**: Do not force a keyword if it makes no sense. The new text must remain truthful to the original experience, just framed better to highlight the skill if applicable.
 
             **Constraints**:
             - **CRITICAL**: DO NOT REMOVE INFORMATION. Preserve all original details, numbers, and context.
@@ -86,6 +91,8 @@ public class ResumeAnalyzerService {
               * **STRICTLY EXCLUDE** dates, years, email addresses, and phone numbers.
               * **Norm**: Return keywords in Title Case or Lowercase consistently.
               * **Focus**: Only extract Technologies, Tools, Hard Skills (e.g. Java, AWS), and Specific Soft Skills (e.g. Leadership).
+            - **Formatting**:
+              * **NO MARKDOWN**: The 'improved' text must be plain text. Do NOT use **bold** or *italics*. It breaks the PDF generator.
 
             **Resume Text**:
             %s
@@ -101,6 +108,7 @@ public class ResumeAnalyzerService {
                 "matchKeywords": ["string"],
                 "jdKeywords": ["string"],
                 "missingKeywords": ["string"],
+                "addedKeywords": ["string"],
                 "strengths": ["string"]
               },
               "suggestions": [
@@ -232,10 +240,44 @@ public class ResumeAnalyzerService {
         partialResponse.setScore(partialResponse.getAnalysis().getMatchScore());
       }
 
+      // Sanitize content (remove Markdown bolding like **text**)
+      sanitizeResponse(partialResponse);
+
       return partialResponse;
     } catch (Exception e) {
       System.err.println("LLM Output that failed parsing: " + llmOutput);
       throw new RuntimeException("Failed to parse LLM JSON output", e);
+    }
+  }
+
+  private void sanitizeResponse(AnalysisResponse response) {
+    if (response.getResumeData() == null)
+      return;
+
+    // Clean Experience bullet points
+    if (response.getResumeData().getExperience() != null) {
+      response.getResumeData().getExperience().forEach(exp -> {
+        if (exp.getBulletPoints() != null) {
+          exp.getBulletPoints().forEach(bp -> {
+            if (bp.getImproved() != null) {
+              bp.setImproved(bp.getImproved().replace("**", "").replace("*", ""));
+            }
+          });
+        }
+      });
+    }
+
+    // Clean Projects bullet points
+    if (response.getResumeData().getProjects() != null) {
+      response.getResumeData().getProjects().forEach(proj -> {
+        if (proj.getBulletPoints() != null) {
+          proj.getBulletPoints().forEach(bp -> {
+            if (bp.getImproved() != null) {
+              bp.setImproved(bp.getImproved().replace("**", "").replace("*", ""));
+            }
+          });
+        }
+      });
     }
   }
 
