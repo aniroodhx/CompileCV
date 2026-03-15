@@ -1,6 +1,5 @@
 package com.lockin.rewrite.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lockin.rewrite.model.AnalysisResponse;
@@ -12,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +31,9 @@ public class ResumeAnalyzerService {
         this.objectMapper = new ObjectMapper();
     }
 
-    public AnalysisResponse analyzeResume(String resumeText, String jobDescription, List<String> missingKeywords) {
+    @org.springframework.cache.annotation.Cacheable(value = "analyses", key = "{#resumeKey, #jobDescription}")
+    public AnalysisResponse analyzeResume(String resumeText, String jobDescription, List<String> missingKeywords,
+            String resumeKey) {
         String prompt = buildPrompt(resumeText, jobDescription, missingKeywords);
         String jsonResponse = callGeminiApi(prompt);
         return parseResponse(jsonResponse, resumeText);

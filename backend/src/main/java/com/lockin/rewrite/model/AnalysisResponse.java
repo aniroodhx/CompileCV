@@ -1,8 +1,9 @@
 package com.lockin.rewrite.model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class AnalysisResponse {
+public class AnalysisResponse implements Serializable {
     private String resumeText;
     private Analysis analysis;
     private List<Suggestion> suggestions;

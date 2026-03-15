@@ -78,7 +78,8 @@ public class AnalysisController {
             List<String> missingKeywords = new ArrayList<>(); // TODO: Implement matching logic if strictly needed
 
             // 4. Run Analysis
-            AnalysisResponse result = resumeAnalyzerService.analyzeResume(resumeText, jobDescription, missingKeywords);
+            AnalysisResponse result = resumeAnalyzerService.analyzeResume(resumeText, jobDescription, missingKeywords,
+                    resumeKey);
 
             return ResponseEntity.ok(result);
 

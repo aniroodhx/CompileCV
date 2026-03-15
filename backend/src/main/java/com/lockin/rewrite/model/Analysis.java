@@ -1,8 +1,9 @@
 package com.lockin.rewrite.model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class Analysis {
+public class Analysis implements Serializable {
     private double matchScore;
     private List<String> strengths;
     private List<String> missingKeywords;

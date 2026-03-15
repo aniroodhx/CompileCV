@@ -1,6 +1,8 @@
 package com.lockin.rewrite.model;
 
-public class Suggestion {
+import java.io.Serializable;
+
+public class Suggestion implements Serializable {
     private String id;
     private String type;
     private String originalText;
