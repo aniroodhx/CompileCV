@@ -6,7 +6,7 @@
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 
-![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-orange)
+![Gemini](https://img.shields.io/badge/Gemini-3.1_Flash_Lite-orange)
 
 CompileCV analyzes your resume against a job description using Google Gemini AI, gives you a deterministic ATS match score, suggests improved bullet points, and generates a clean one-page PDF — all with zero data persistence.
 
@@ -28,7 +28,7 @@ CompileCV analyzes your resume against a job description using Google Gemini AI,
 
 - **Backend**: Spring Boot 3.2, Java 21
 
-- **AI**: Google Gemini 2.5 Flash
+- **AI**: Google Gemini 3.1 Flash Lite
 
 - **PDF**: Tectonic (LaTeX)
 
