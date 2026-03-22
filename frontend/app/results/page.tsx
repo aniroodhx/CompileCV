@@ -163,7 +163,8 @@ export default function ResultsPage() {
   const generatePdf = async (resumeData: ResumeData) => {
     setPdfLoading(true);
     try {
-      const response = await fetch("http://localhost:8080/api/generate-pdf", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await fetch(`${apiUrl}/api/generate-pdf`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(resumeData),
