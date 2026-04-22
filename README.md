@@ -64,7 +64,7 @@ npm run dev
 
 - **Frontend**: Vercel
 
-
+open https://compile-cv.vercel.app/
 
 ## License
 
