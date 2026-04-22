@@ -68,4 +68,4 @@ npm run dev
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
+Copyright © 2025 Anirudh S. Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
