@@ -3,6 +3,7 @@ package com.lockin.compilecv.controller;
 import com.lockin.compilecv.model.AnalysisResponse;
 import com.lockin.compilecv.service.DocumentParserService;
 import com.lockin.compilecv.service.ResumeAnalyzerService;
+import com.lockin.compilecv.service.DocxService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -21,10 +22,11 @@ public class AnalysisController {
     private final DocumentParserService documentParserService;
     private final ResumeAnalyzerService resumeAnalyzerService;
     private final com.lockin.compilecv.service.LatexService latexService;
+    private final DocxService docxService;
 
     private final Map<String, List<Long>> requestLog = new java.util.concurrent.ConcurrentHashMap<>();
     private static final int MAX_REQUESTS = 5;
-    private static final long WINDOW_MS = 60_000; // 1 minute
+    private static final long WINDOW_MS = 60_000;
 
     private boolean isRateLimited(String ip) {
         long now = System.currentTimeMillis();
@@ -39,10 +41,12 @@ public class AnalysisController {
     public AnalysisController(
             DocumentParserService documentParserService,
             ResumeAnalyzerService resumeAnalyzerService,
-            com.lockin.compilecv.service.LatexService latexService) {
+            com.lockin.compilecv.service.LatexService latexService,
+            DocxService docxService) {
         this.documentParserService = documentParserService;
         this.resumeAnalyzerService = resumeAnalyzerService;
         this.latexService = latexService;
+        this.docxService = docxService;
     }
 
     @PostMapping("/process")
@@ -89,6 +93,22 @@ public class AnalysisController {
                     .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
                     .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"resume.pdf\"")
                     .body(pdfBytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/generate-docx")
+    public ResponseEntity<?> generateDocx(@RequestBody com.lockin.compilecv.model.resume.ResumeData resumeData) {
+        try {
+            byte[] docxBytes = docxService.generateDocx(resumeData);
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"resume.docx\"")
+                    .body(docxBytes);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));

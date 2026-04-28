@@ -13,6 +13,18 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("compilecv-dark");
+    if (saved === "true") setDarkMode(true);
+  }, []);
+
+  const toggleDark = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    localStorage.setItem("compilecv-dark", String(next));
+  };
   const [loadingMessage, setLoadingMessage] = useState("Scanning resume structure...");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -103,7 +115,15 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen flex items-center">
+    <main className={`min-h-screen flex items-center transition-colors duration-200 ${darkMode ? "bg-gray-950" : "bg-white"}`}>
+      {/* Dark mode toggle — top right */}
+      <button
+        onClick={toggleDark}
+        className={`fixed top-4 right-4 z-50 w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-yellow-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"}`}
+        title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+      >
+        {darkMode ? "☀️" : "🌙"}
+      </button>
       <div className="w-full max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
         {/* LEFT: Branding + features */}
@@ -116,7 +136,7 @@ export default function Home() {
             </div>
             <h1 className="text-5xl font-bold leading-tight mb-4">
               <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Compile</span>
-              <span className="text-slate-800">CV</span>
+              <span className={darkMode ? "text-gray-100" : "text-slate-800"}>CV</span>
             </h1>
             <p className="text-slate-500 text-lg leading-relaxed max-w-md">
               Match your resume to any job description with deterministic keyword scoring and AI-powered bullet rewrites.
@@ -141,7 +161,7 @@ export default function Home() {
 
         {/* RIGHT: Form */}
         <div className="animate-in">
-          <div className="glass-effect rounded-2xl p-8 shadow-2xl">
+          <div className={`rounded-2xl p-8 shadow-2xl ${darkMode ? "bg-gray-900 border border-gray-700" : "glass-effect"}`}>
 
             {/* Privacy */}
             <div className="mb-6 p-3 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 flex items-center gap-2">
@@ -204,11 +224,11 @@ export default function Home() {
                   onChange={(e) => setJd(e.target.value)}
                   placeholder="Paste the job description here..."
                   rows={8}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y disabled:bg-slate-50 transition-all bg-white text-slate-700 placeholder:text-slate-300 text-sm"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y transition-all text-sm ${darkMode ? "bg-gray-800 border-gray-600 text-gray-200 placeholder:text-gray-500" : "border-slate-200 bg-white text-slate-700 placeholder:text-slate-300 disabled:bg-slate-50"}`}
                   disabled={processing}
                   required
                 />
-                <p className="text-xs text-slate-400 text-right">{jd.length} chars · {jd.split(/\s+/).filter(Boolean).length} words</p>
+                <p className={`text-xs text-right ${darkMode ? "text-gray-500" : "text-slate-400"}`}>{jd.length} chars · {jd.split(/\s+/).filter(Boolean).length} words</p>
               </div>
 
               {/* Error */}
