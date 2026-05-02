@@ -301,7 +301,11 @@ export default function ResultsPage() {
   // and score correctly on re-upload — no reliance on Gemini embedding them
   const injectKeywordsIntoSkills = (resumeData: ResumeData, accepted: boolean): ResumeData => {
     if (!data) return resumeData;
-    const missingKws = data.analysis.missingKeywords || [];
+    // Always use originalMatchKeywords as base to derive missing — never mutated missingKeywords
+    const originalMatches = data.analysis.originalMatchKeywords || [];
+    const missingKws = (data.analysis.jdKeywords || []).filter(
+      k => !originalMatches.map((m: string) => m.toLowerCase()).includes(k.toLowerCase())
+    );
     if (missingKws.length === 0) return resumeData;
 
     const skills = resumeData.skills || { languages: "", frameworks: "", tools: "" };
@@ -326,6 +330,7 @@ export default function ResultsPage() {
 
   const toggleAll = (accepted: boolean) => {
     if (!data) return;
+
     const updatedResumeData = injectKeywordsIntoSkills({
       ...data.resumeData,
       experience: data.resumeData.experience?.map(exp => ({
@@ -338,22 +343,33 @@ export default function ResultsPage() {
       })),
     }, accepted);
 
-    // When resetting, restore original match keywords so score resets correctly
-    const resetAnalysis = !accepted ? {
-      ...data.analysis,
-      matchKeywords: [...(data.analysis.originalMatchKeywords || [])],
-      missingKeywords: (data.analysis.jdKeywords || []).filter(
-        k => !(data.analysis.originalMatchKeywords || [])
-          .map(m => m.toLowerCase()).includes(k.toLowerCase())
-      ),
-      addedKeywords: [],
-    } : data.analysis;
+    if (!accepted) {
+      // RESET — force score back to original, skip recalculation entirely
+      const originalScore = computeScore({
+        ...data.analysis,
+        matchKeywords: [...(data.analysis.originalMatchKeywords || [])],
+      });
+      const resetData: ProcessedResume = {
+        ...data,
+        analysis: {
+          ...data.analysis,
+          matchKeywords: [...(data.analysis.originalMatchKeywords || [])],
+          missingKeywords: (data.analysis.jdKeywords || []).filter(
+            k => !(data.analysis.originalMatchKeywords || [])
+              .map((m: string) => m.toLowerCase()).includes(k.toLowerCase())
+          ),
+          addedKeywords: [],
+        },
+        resumeData: updatedResumeData,
+      };
+      setLiveScore(originalScore);
+      setData(resetData);
+      generatePdf(updatedResumeData);
+      return;
+    }
 
-    const newData: ProcessedResume = {
-      ...data,
-      analysis: resetAnalysis,
-      resumeData: updatedResumeData,
-    };
+    // ACCEPT ALL — run normal recalculation with keyword injection
+    const newData: ProcessedResume = { ...data, resumeData: updatedResumeData };
     const updated = recalculateAnalysis(newData);
     setData(updated);
     generatePdf(updated.resumeData);
@@ -387,17 +403,79 @@ export default function ResultsPage() {
       },
     };
 
-    // Check if all bullets are now accepted — if so, inject keywords
-    const allAccepted = [
+    // Get all bullets after toggle
+    const allBullets = [
       ...(newData.resumeData.experience?.flatMap(e => e.bulletPoints) || []),
       ...(newData.resumeData.projects?.flatMap(p => p.bulletPoints) || []),
-    ].every(bp => bp.accepted);
+    ];
+    const acceptedCount = allBullets.filter(bp => bp.accepted).length;
+    const totalCount = allBullets.length || 1;
+    const noneAccepted = acceptedCount === 0;
 
-    const finalResumeData = injectKeywordsIntoSkills(newData.resumeData, allAccepted);
-    const finalData: ProcessedResume = { ...newData, resumeData: finalResumeData };
-    const updated = recalculateAnalysis(finalData);
-    setData(updated);
-    generatePdf(updated.resumeData);
+    // Remove injected keywords from tools — recalculate fresh based on accepted ratio
+    const cleanResumeData = injectKeywordsIntoSkills(newData.resumeData, false);
+
+    if (noneAccepted) {
+      // All unchecked — reset to original score
+      const originalScore = computeScore({
+        ...data.analysis,
+        matchKeywords: [...(data.analysis.originalMatchKeywords || [])],
+      });
+      const resetData: ProcessedResume = {
+        ...newData,
+        analysis: {
+          ...data.analysis,
+          matchKeywords: [...(data.analysis.originalMatchKeywords || [])],
+          missingKeywords: (data.analysis.jdKeywords || []).filter(
+            k => !(data.analysis.originalMatchKeywords || [])
+              .map((m: string) => m.toLowerCase()).includes(k.toLowerCase())
+          ),
+          addedKeywords: [],
+        },
+        resumeData: cleanResumeData,
+      };
+      setLiveScore(originalScore);
+      setData(resetData);
+      generatePdf(cleanResumeData);
+      return;
+    }
+
+    // Always calculate from originalMatchKeywords as fixed base
+    // This keeps scoring consistent with Reset All behavior
+    const originalMatches = data.analysis.originalMatchKeywords || [];
+    const allMissingKws = (data.analysis.jdKeywords || []).filter(
+      k => !originalMatches.map((m: string) => m.toLowerCase()).includes(k.toLowerCase())
+    );
+    const jdTotal = (data.analysis.jdKeywords || []).length || 1;
+
+    // Proportional: how many missing keywords are covered by accepted suggestions
+    const keywordsCovered = Math.round((acceptedCount / totalCount) * allMissingKws.length);
+    const keywordsToInject = allMissingKws.slice(0, keywordsCovered);
+    const newMatchCount = originalMatches.length + keywordsCovered;
+    const newScore = Math.min(100, Math.round((newMatchCount / jdTotal) * 100));
+
+    // Inject exactly the proportional keywords into tools
+    const tools = cleanResumeData.skills?.tools || "";
+    const toolsLower = tools.toLowerCase();
+    const toAdd = keywordsToInject.filter((k: string) => !toolsLower.includes(k.toLowerCase()));
+    const partialResumeData = {
+      ...cleanResumeData,
+      skills: {
+        ...cleanResumeData.skills,
+        tools: tools + (toAdd.length > 0 ? (tools ? ", " : "") + toAdd.join(", ") : ""),
+      },
+    };
+
+    const partialAnalysis = {
+      ...data.analysis,
+      matchKeywords: [...originalMatches, ...keywordsToInject],
+      missingKeywords: allMissingKws.slice(keywordsCovered),
+      addedKeywords: keywordsToInject,
+    };
+
+    setLiveScore(newScore);
+    setData({ ...newData, analysis: partialAnalysis, resumeData: partialResumeData });
+    generatePdf(partialResumeData);
   };
 
   // Dark mode class helpers
