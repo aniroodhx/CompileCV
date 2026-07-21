@@ -36,6 +36,44 @@ CompileCV analyzes your resume against a job description using Google Gemini AI,
 
 ## Running Locally
 
+## Design Decisions
+
+**Deterministic scoring, not pure-LLM scoring.**
+An earlier design choice worth narrating explicitly: the match score itself
+comes from keyword normalization + weighted rules (required terms weighted
+higher than preferred), not from asking an LLM "rate this resume's fit."
+The tradeoff is explainability versus flexibility — a pure-LLM score can
+adapt to nuance a rule-based system misses, but it can't tell a user *why*
+it landed on 72% instead of 85%, and it can drift between identical runs.
+Deterministic scoring means the same resume + JD pair always produces the
+same score, and every point lost traces back to a specific missing or
+under-weighted keyword — which is also what makes an actionable "missing
+keywords" list possible at all. Gemini is still used, but scoped to what
+LLMs are actually better at than rules: rewriting a bullet to naturally
+include a missing keyword, where fluency and phrasing genuinely benefit
+from a model rather than a template.
+
+**Idempotency on the scoring endpoint.**
+The scoring endpoint hashes (file bytes + job description) with SHA-256
+and caches the result for 5 minutes. This guards against a user
+double-submitting the same resume+JD pair — most commonly a slow network
+causing a second click, or a client-side timeout on a request that
+actually succeeded server-side. Without this, a double-submit means
+re-parsing the file and re-calling Gemini a second time for input that's
+byte-for-byte identical to the first — wasted latency and real API cost
+for a result that was already computed.
+
+**In-memory token bucket rate limiting, not Redis.**
+The scoring endpoint is rate-limited per client IP using a token bucket
+(5-request burst capacity, refilling at 5/minute) rather than the sliding-
+window log this replaced. A token bucket needs only two numbers per client
+(current tokens, last refill time) versus a full list of request
+timestamps, and it naturally tolerates a short burst — e.g. a user
+retrying after a transient parse error — without treating that burst as
+abuse. This stays in-memory rather than Redis-backed because the service
+runs as a single instance; Redis would be justified the moment this needs
+to scale behind a load balancer with multiple instances, but isn't today.
+
 ### Backend
 
 ```bash
